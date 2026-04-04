@@ -1,6 +1,7 @@
-import { ConditionFactory } from "./condition";
-import { createDefaultOperatorRegistry, type EngineOptions } from "./operators";
+import { ConditionFactory, type PathParseCache } from "./condition";
+import { resolveOperators, type EngineOptions } from "./operators";
 import { type IRule, type IContext, type IRuleSet } from "./types";
+import type { ParsedQuery } from "./jspath";
 
 export class Rule {
     private _conditions: ReturnType<typeof ConditionFactory.create>[];
@@ -8,10 +9,11 @@ export class Rule {
         private readonly rule: IRule,
         private readonly options?: EngineOptions,
     ) {
-        const operators =
-            this.options?.operators ?? createDefaultOperatorRegistry();
+        const operators = resolveOperators(this.options?.operators);
+        const pathParseCache: PathParseCache = new Map<string, ParsedQuery>();
+        const build = { operators, pathParseCache };
         this._conditions = this.rule.conditions.map((condition) =>
-            ConditionFactory.create(condition, { operators }),
+            ConditionFactory.create(condition, build),
         );
     }
     public evaluate(context: IContext): boolean {

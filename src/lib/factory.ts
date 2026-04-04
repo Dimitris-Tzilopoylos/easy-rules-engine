@@ -1,5 +1,6 @@
-import { ConditionFactory } from "./condition";
-import type { EngineOptions } from "./operators";
+import { ConditionFactory, type PathParseCache } from "./condition";
+import type { ParsedQuery } from "./jspath";
+import { resolveOperators, type EngineOptions } from "./operators";
 import { Rule, RuleSet } from "./rule";
 import type {
   Evaluatable,
@@ -35,9 +36,9 @@ export const createCondition = (
   definition: IBaseCondition | IBaseConditionGroup,
   options?: EngineOptions,
 ): Evaluatable => {
-  return ConditionFactory.create(definition, {
-    operators: options?.operators,
-  });
+  const operators = resolveOperators(options?.operators);
+  const pathParseCache: PathParseCache = new Map<string, ParsedQuery>();
+  return ConditionFactory.create(definition, { operators, pathParseCache });
 };
 
 export const createContext = (input: Record<string, any>): IContext => {

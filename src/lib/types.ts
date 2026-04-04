@@ -20,8 +20,8 @@ export interface IBaseConditionCore {
 }
 
 export type IBaseCondition =
-  | (IBaseConditionCore & { value: unknown; valuePath: never })
-  | (IBaseConditionCore & { valuePath: string; value: never });
+  | (IBaseConditionCore & { value: unknown; valuePath?: never })
+  | (IBaseConditionCore & { valuePath: string; value?: never });
 
 export interface IBaseConditionGroup {
   conditions: (IBaseCondition | IBaseConditionGroup)[];
