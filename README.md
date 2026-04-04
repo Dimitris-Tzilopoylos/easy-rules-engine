@@ -26,7 +26,7 @@ For local development from a clone, use `npm install` in the repo root.
 
 ## Public API
 
-The package exports **factory functions** and **types** only. Everything you evaluate implements `Evaluatable` (`evaluate(context): boolean`). There are no public classes.
+The package exports **factories**, **types**, and **jspath** helpers. Everything you evaluate implements `Evaluatable` (`evaluate(context): boolean`). There are no public classes for rules/conditions (only the factory API).
 
 | Factory | Purpose |
 | ------- | ------- |
@@ -36,6 +36,16 @@ The package exports **factory functions** and **types** only. Everything you eva
 | `createEvaluable(definition, options?)` | `IRule` or `IRuleSet` (use when the shape is only known at runtime). |
 | `createCondition(definition, options?)` | One `IBaseCondition` (leaf: `value` **or** `valuePath`) or `IBaseConditionGroup` without wrapping in `IRule`. |
 | `createOperatorRegistry(handlers)` | Custom operators as a plain object; merged with defaults when passed in `options.operators`. |
+
+| jspath (same engine as `field` / `valuePath`) | Purpose |
+| --------------------------------------------- | ------- |
+| `parse(path)` | Parse a path string to `ParsedQuery`. |
+| `query(doc, path)` | Run path on a JSON document; returns `QueryResult[]`. |
+| `values(doc, path)` | Values from `query`. |
+| `first` / `last` | First or last match value. |
+| `evaluateParsed` / `firstParsed` / `lastParsed` | Evaluate with an already-parsed query (reuse `ParsedQuery`). |
+
+Types: `JsonValue`, `JsonObject`, `JsonArray`, `ParsedQuery`, `QueryResult`, `Selector`.
 
 Optional second argument on rule/condition factories: `{ operators?: OperatorRegistry }`. Produce that registry with **`createOperatorRegistry({ ... })`** (see below).
 
@@ -152,7 +162,7 @@ Registry factories: **`createOperatorRegistry(handlers)`** (custom ops), **`crea
 
 ```
 src/
-  index.ts           # Re-exports factory, operators, types (no classes)
+  index.ts           # Re-exports factory, operators, types, jspath helpers
   lib/
     types.ts         # IRule, IBaseCondition (value XOR valuePath), IContext, Evaluatable, …
     operators.ts     # OperatorRegistry and built-ins

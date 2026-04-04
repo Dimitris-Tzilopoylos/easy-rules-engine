@@ -32,3 +32,23 @@ export type {
   KnownConditionOperator,
   RuleType,
 } from "./lib/types";
+
+export {
+  evaluateParsed,
+  first,
+  firstParsed,
+  last,
+  lastParsed,
+  parse,
+  query,
+  values,
+} from "./lib/jspath";
+
+export type {
+  JsonArray,
+  JsonObject,
+  JsonValue,
+  ParsedQuery,
+  QueryResult,
+  Selector,
+} from "./lib/jspath";
