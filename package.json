@@ -1,0 +1,58 @@
+{
+  "name": "easy-rules-engine",
+  "version": "0.1.0",
+  "description": "Evaluate JSON-friendly rules and rule sets with JSONPath-style fields and pluggable operators",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "rules",
+    "easy-rules-engine",
+    "rules-engine",
+    "conditions",
+    "json",
+    "jsonpath",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dimitris-Tzilopoylos/easy-rules-engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dimitris-Tzilopoylos/easy-rules-engine/issues"
+  },
+  "homepage": "https://github.com/Dimitris-Tzilopoylos/easy-rules-engine#readme",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --sourcemap --packages=external && tsc --emitDeclarationOnly",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test && npm run build",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "node --import tsx --test --test-isolation=none test/all.test.ts",
+    "test:watch": "node --import tsx --test --test-isolation=none --watch test/all.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
