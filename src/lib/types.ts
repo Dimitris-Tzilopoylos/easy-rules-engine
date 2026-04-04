@@ -14,11 +14,14 @@ export type KnownConditionOperator =
 
 export type ConditionOperator = KnownConditionOperator | (string & {});
 
-export interface IBaseCondition {
+export interface IBaseConditionCore {
   field: string;
   operator: ConditionOperator;
-  value?: any;
 }
+
+export type IBaseCondition =
+  | (IBaseConditionCore & { value: unknown; valuePath: never })
+  | (IBaseConditionCore & { valuePath: string; value: never });
 
 export interface IBaseConditionGroup {
   conditions: (IBaseCondition | IBaseConditionGroup)[];

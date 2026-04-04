@@ -24,6 +24,7 @@ export type {
   ConditionOperator,
   Evaluatable,
   IBaseCondition,
+  IBaseConditionCore,
   IBaseConditionGroup,
   IContext,
   IRule,

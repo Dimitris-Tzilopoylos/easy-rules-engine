@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createCondition } from "../src/lib/factory";
 import { createOperatorRegistry } from "../src/lib/operators";
-import { cond, group } from "./helpers";
+import { cond, condValuePath, group } from "./helpers";
 import type { IBaseCondition, IContext } from "../src/lib/types";
 
 const ctx = (input: Record<string, unknown>): IContext => ({ input });
@@ -104,7 +104,7 @@ describe("createCondition", () => {
     );
   });
 
-  it("throws when base condition has no value", () => {
+  it("throws when base condition has neither value nor valuePath", () => {
     assert.throws(
       () =>
         createCondition({
@@ -112,6 +112,40 @@ describe("createCondition", () => {
           operator: "eq",
         } as IBaseCondition),
       /Invalid condition/,
+    );
+  });
+
+  it("throws when base condition has both value and valuePath", () => {
+    assert.throws(
+      () =>
+        createCondition({
+          field: "$.x",
+          operator: "eq",
+          value: 1,
+          valuePath: "y",
+        } as IBaseCondition),
+      /Invalid condition/,
+    );
+  });
+
+  it("resolves valuePath from input like field (literal key vs path)", () => {
+    assert.equal(
+      createCondition(condValuePath("$.a", "eq", "b")).evaluate(
+        ctx({ a: 1, b: 1 }),
+      ),
+      true,
+    );
+    assert.equal(
+      createCondition(condValuePath("$.a", "eq", "$.b")).evaluate(
+        ctx({ a: 1, b: 2 }),
+      ),
+      false,
+    );
+    assert.equal(
+      createCondition(condValuePath("$.nested.a", "eq", "ref")).evaluate(
+        ctx({ nested: { a: 5 }, ref: 5 }),
+      ),
+      true,
     );
   });
 });

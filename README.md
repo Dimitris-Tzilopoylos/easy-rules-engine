@@ -1,6 +1,6 @@
 # easy-rules-engine
 
-TypeScript library for evaluating JSON-friendly **rules** and **rule sets** against a context. Conditions use a JSONPath-style **`field`** path (via the built-in jspath helper) and pluggable **operators**, including a default set you can extend or override.
+TypeScript library for evaluating JSON-friendly **rules** and **rule sets** against a context. Each leaf condition reads a **`field`** from the context (JSONPath-style via the built-in jspath helper) and compares it using pluggable **operators**. The right-hand side is either a literal **`value`** or another path **`valuePath`** resolved the same way as `field`.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ The package exports **factory functions** and **types** only. Everything you eva
 | `createRule(definition, options?)` | Single `IRule`. |
 | `createRuleSet(definition, options?)` | Single `IRuleSet`. |
 | `createEvaluable(definition, options?)` | `IRule` or `IRuleSet` (use when the shape is only known at runtime). |
-| `createCondition(definition, options?)` | One `IBaseCondition` or `IBaseConditionGroup` without wrapping in `IRule`. |
+| `createCondition(definition, options?)` | One `IBaseCondition` (leaf: `value` **or** `valuePath`) or `IBaseConditionGroup` without wrapping in `IRule`. |
 | `createOperatorRegistry(handlers)` | Custom operators as a plain object; merged with defaults when passed in `options.operators`. |
 
 Optional second argument on rule/condition factories: `{ operators?: OperatorRegistry }`. Produce that registry with **`createOperatorRegistry({ ... })`** (see below).
@@ -54,24 +54,45 @@ const rule = createRule({
       conditions: [
         { field: "$.score", operator: "gte", value: 10 },
         { field: "$.role", operator: "neq", value: "guest" },
+        // Compare two inputs: field vs path (same resolution rules as `field`)
+        { field: "$.password", operator: "eq", valuePath: "passwordConfirm" },
       ],
     },
   ],
 });
 
 rule.evaluate(
-  createContext({ status: "active", score: 15, role: "user" }),
+  createContext({
+    status: "active",
+    score: 15,
+    role: "user",
+    password: "hunter2",
+    passwordConfirm: "hunter2",
+  }),
 );
 ```
 
 After install, import from `easy-rules-engine`. For a local link, use `npm link`, `"file:../path"`, or your workspace setup.
 
-### Context
+### Context and paths
 
-`IContext` is an object with at least `input: Record<string, unknown>` (and optional extra keys). Each condition’s **`field`** is resolved against `context.input` as follows:
+`IContext` is an object with at least `input: Record<string, unknown>` (and optional extra keys).
 
-- If **`field` names a key on `input`** (same idea as the `in` operator), the value is read directly from that property. **JSONPath is not mandatory then** — e.g. use `status` when `input` has a root property `status`, instead of `$.status`.
-- Otherwise **`field` is passed to the JSONPath-style path engine** as given (for example `$.user.tier`).
+**Resolving `field` and `valuePath`** (same rules for both):
+
+- If the string **names a key on `input`** (same idea as the `in` operator), the value is read from that property. **JSONPath is not mandatory** — e.g. use `status` when `input` has a root property `status`, instead of `$.status`.
+- Otherwise the string is passed to the **JSONPath-style path engine** as given (for example `$.user.tier`).
+
+**Leaf conditions (`IBaseCondition`)** extend `IBaseConditionCore` (`field`, `operator`) with **exactly one** of:
+
+| Property      | Role |
+| ------------- | ---- |
+| **`value`**   | Literal right-hand side passed to the operator after `field` is resolved. |
+| **`valuePath`** | Path string; resolved from `context.input` like `field`. The result is the right-hand side. |
+
+Do not set both `value` and `valuePath` on the same condition; `createCondition` and rule factories throw when the shape is invalid (neither or both).
+
+At runtime, **custom operators** always receive the already-resolved right-hand side as `value` in their handler args (whether it came from a literal or from `valuePath`).
 
 ### Rules and rule sets
 
@@ -83,20 +104,20 @@ Use `createRule` / `createRuleSet`, or `createEvaluable` when you have either an
 
 ### Built-in operators
 
-| Operator     | Meaning (field value vs `value` from the condition) |
-| ------------ | ---------------------------------------------------- |
-| `eq` / `neq` | Strict equality / inequality                         |
+| Operator     | Meaning (resolved **left** = `field`, resolved **right** = `value` or path → `valuePath`) |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| `eq` / `neq` | Strict equality / inequality |
 | `gt`, `gte`, `lt`, `lte` | Relational (coerced as `string \| number` for comparison) |
-| `contains`   | `condition.value` is array-like with `.includes(fieldValue)` |
-| `ncontains`  | `fieldValue` is string-like; does not include `condition.value` as substring |
-| `all` / `any` | Array `value`: every / some element equals field value |
-| `nany` / `none` | Array `value`: no element equals field value      |
+| `contains`   | Right-hand side is array-like; `.includes(fieldValue)` |
+| `ncontains`  | `fieldValue` is string-like; does not include right-hand substring |
+| `all` / `any` | Right-hand side is an array: every / some element equals `fieldValue` |
+| `nany` / `none` | Right-hand side is an array: no element equals `fieldValue` |
 
 Unknown operator names throw at evaluation time.
 
 ### Custom operators
 
-Handlers receive `{ fieldValue, value, condition, context }` and return a boolean.
+Handlers receive `{ fieldValue, value, condition, context }` and return a boolean. Here **`value`** is the resolved right-hand side (literal or read via `valuePath`). The full **`condition`** object is still available if you need to distinguish `value` vs `valuePath` in metadata.
 
 Custom registries are **merged on top of the defaults**: pass **`createOperatorRegistry({ ... })`** so only custom handlers are listed; built-ins stay available unless you override a name. Names `and`, `or`, and `not` are reserved for groups.
 
@@ -133,12 +154,12 @@ Registry factories: **`createOperatorRegistry(handlers)`** (custom ops), **`crea
 src/
   index.ts           # Re-exports factory, operators, types (no classes)
   lib/
-    types.ts         # Rule / condition / context types, Evaluatable
+    types.ts         # IRule, IBaseCondition (value XOR valuePath), IContext, Evaluatable, …
     operators.ts     # OperatorRegistry and built-ins
     condition.ts     # Internal condition tree (used by factory)
     rule.ts          # Internal rule engine (used by factory)
     factory.ts       # createRule, createRuleSet, createEvaluable, createCondition, createContext
-    jspath/          # Path parsing and evaluation for `field`
+    jspath/          # Path parsing and evaluation for `field` and `valuePath`
 test/
   all.test.ts        # Loads all suites
   condition.test.ts  # Operators, createCondition, groups (flat)

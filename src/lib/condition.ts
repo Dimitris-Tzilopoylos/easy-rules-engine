@@ -1,6 +1,17 @@
 import { first } from "./jspath";
 import { resolveOperators, type OperatorRegistry } from "./operators";
-import { type IBaseCondition, type IBaseConditionGroup, type IContext } from "./types";
+import {
+  type IBaseCondition,
+  type IBaseConditionGroup,
+  type IContext,
+} from "./types";
+
+function readFromInput(input: Record<string, any>, keyOrPath: string): unknown {
+  if (keyOrPath in input) {
+    return input[keyOrPath];
+  }
+  return first(input, keyOrPath);
+}
 
 export class Condition {
   private readonly condition: IBaseCondition;
@@ -12,22 +23,22 @@ export class Condition {
   }
 
   public evaluate(context: IContext): boolean {
-    let fieldValue: unknown;
-    if (this.condition.field in context.input) {
-      fieldValue = context.input[this.condition.field];
-    } else {
-      fieldValue = first(context.input, this.condition.field);
-    }
+    const fieldValue = readFromInput(context.input, this.condition.field);
+    const c = this.condition;
+    const value: unknown = Object.hasOwn(c, "valuePath")
+      ? readFromInput(
+          context.input,
+          (c as Extract<IBaseCondition, { valuePath: string }>).valuePath,
+        )
+      : (c as Extract<IBaseCondition, { value: unknown }>).value;
     return this.operators.evaluate(this.condition.operator as string, {
       fieldValue,
-      value: this.condition.value,
+      value,
       condition: this.condition,
       context,
     });
   }
 }
-
-
 
 export class ConditionGroup {
   private readonly condition: IBaseConditionGroup;
@@ -63,7 +74,13 @@ export class ConditionGroup {
   }
 }
 
-
+function isLeafConditionShape(
+  c: IBaseCondition | IBaseConditionGroup,
+): c is IBaseCondition {
+  const hasValue = Object.hasOwn(c, "value");
+  const hasValuePath = Object.hasOwn(c, "valuePath");
+  return hasValue !== hasValuePath;
+}
 
 export class ConditionFactory {
   static create(
@@ -78,9 +95,11 @@ export class ConditionFactory {
     ) {
       return new ConditionGroup(condition as IBaseConditionGroup, operators);
     }
-    if ("value" in condition) {
-      return new Condition(condition as IBaseCondition, operators);
+    if (isLeafConditionShape(condition)) {
+      return new Condition(condition, operators);
     }
-    throw new Error("Invalid condition");
+    throw new Error(
+      "Invalid condition: provide exactly one of value or valuePath",
+    );
   }
 }
