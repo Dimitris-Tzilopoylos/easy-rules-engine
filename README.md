@@ -26,7 +26,9 @@ For local development from a clone, use `npm install` in the repo root.
 
 ## Public API
 
-The package exports **factories**, **types**, and **jspath** helpers. Everything you evaluate implements `Evaluatable` (`evaluate(context): boolean`). There are no public classes for rules/conditions (only the factory API).
+The package exports **factories**, **types**, and **jspath** helpers. Everything you evaluate implements `Evaluatable`: synchronous **`evaluate(context): boolean`** and **`evaluateAsync(context): Promise<boolean>`** for trees that include async custom operators. There are no public classes for rules/conditions (only the factory API).
+
+If a custom operator returns a **`Promise<boolean>`**, you must use **`evaluateAsync`**. Calling **`evaluate`** in that case throws (so a Promise is never mistaken for a truthy boolean).
 
 | Factory | Purpose |
 | ------- | ------- |
@@ -137,7 +139,7 @@ Unknown operator names throw at evaluation time.
 
 ### Custom operators
 
-Handlers receive `{ fieldValue, value, condition, context }` and return a boolean. Here **`value`** is the resolved right-hand side (literal or read via `valuePath`). The full **`condition`** object is still available if you need to distinguish `value` vs `valuePath` in metadata.
+Handlers receive `{ fieldValue, value, condition, context }` and return **`boolean`** or **`Promise<boolean>`** (for I/O such as password checks). Here **`value`** is the resolved right-hand side (literal or read via `valuePath`). The full **`condition`** object is still available if you need to distinguish `value` vs `valuePath` in metadata. Use **`evaluateAsync`** when any handler in the tree can be async.
 
 Custom registries are **merged on top of the defaults**: pass **`createOperatorRegistry({ ... })`** so only custom handlers are listed; built-ins stay available unless you override a name. Names `and`, `or`, and `not` are reserved for groups.
 

@@ -81,6 +81,28 @@ export class Condition {
       context,
     });
   }
+
+  public async evaluateAsync(context: IContext): Promise<boolean> {
+    const fieldValue = readFromInput(
+      context.input,
+      this.condition.field,
+      this.pathParseCache,
+    );
+    const c = this.condition;
+    const value: unknown = Object.hasOwn(c, "valuePath")
+      ? readFromInput(
+          context.input,
+          (c as Extract<IBaseCondition, { valuePath: string }>).valuePath,
+          this.pathParseCache,
+        )
+      : (c as Extract<IBaseCondition, { value: unknown }>).value;
+    return this.operators.evaluateAsync(this.condition.operator as string, {
+      fieldValue,
+      value,
+      condition: this.condition,
+      context,
+    });
+  }
 }
 
 export class ConditionGroup {
@@ -101,6 +123,10 @@ export class ConditionGroup {
     return this.evaluateCondition(context);
   }
 
+  public async evaluateAsync(context: IContext): Promise<boolean> {
+    return this.evaluateConditionAsync(context);
+  }
+
   private evaluateCondition(context: IContext): boolean {
     if (this.condition.operator === "and") {
       return this._conditions.every((condition) => condition.evaluate(context));
@@ -110,6 +136,36 @@ export class ConditionGroup {
     }
     if (this.condition.operator === "not") {
       return !this._conditions.some((condition) => condition.evaluate(context));
+    }
+    throw new Error("Invalid condition");
+  }
+
+  private async evaluateConditionAsync(
+    context: IContext,
+  ): Promise<boolean> {
+    if (this.condition.operator === "and") {
+      for (const condition of this._conditions) {
+        if (!(await condition.evaluateAsync(context))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (this.condition.operator === "or") {
+      for (const condition of this._conditions) {
+        if (await condition.evaluateAsync(context)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    if (this.condition.operator === "not") {
+      for (const condition of this._conditions) {
+        if (await condition.evaluateAsync(context)) {
+          return false;
+        }
+      }
+      return true;
     }
     throw new Error("Invalid condition");
   }

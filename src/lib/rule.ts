@@ -20,6 +20,10 @@ export class Rule {
         return this.evaluateConditions(context);
     }
 
+    public async evaluateAsync(context: IContext): Promise<boolean> {
+        return this.evaluateConditionsAsync(context);
+    }
+
     private evaluateConditions(context: IContext): boolean {
         const result =  this._conditions.every((condition) => condition.evaluate(context));
         if(this.rule.type === "permissive") {
@@ -29,6 +33,23 @@ export class Rule {
         } else {
             throw new Error("Invalid rule type");
         }
+    }
+
+    private async evaluateConditionsAsync(context: IContext): Promise<boolean> {
+        let result = true;
+        for (const condition of this._conditions) {
+            if (!(await condition.evaluateAsync(context))) {
+                result = false;
+                break;
+            }
+        }
+        if (this.rule.type === "permissive") {
+            return result;
+        }
+        if (this.rule.type === "restrictive" && !result) {
+            return !result;
+        }
+        throw new Error("Invalid rule type");
     }
 }
 
@@ -49,8 +70,21 @@ export class RuleSet {
         return this.evaluateRules(context);
     }
 
+    public async evaluateAsync(context: IContext): Promise<boolean> {
+        return this.evaluateRulesAsync(context);
+    }
+
     private evaluateRules(context: IContext): boolean {
         return this._rules.every((rule) => rule.evaluate(context));
+    }
+
+    private async evaluateRulesAsync(context: IContext): Promise<boolean> {
+        for (const rule of this._rules) {
+            if (!(await rule.evaluateAsync(context))) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 

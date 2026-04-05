@@ -58,4 +58,5 @@ export interface IContext {
 
 export interface Evaluatable {
   evaluate(context: IContext): boolean;
+  evaluateAsync(context: IContext): Promise<boolean>;
 }

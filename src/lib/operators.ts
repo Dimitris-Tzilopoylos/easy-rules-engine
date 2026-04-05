@@ -7,7 +7,16 @@ export type ConditionOperatorArgs = {
   context: IContext;
 };
 
-export type ConditionOperatorHandler = (args: ConditionOperatorArgs) => boolean;
+export type ConditionOperatorHandler = (
+  args: ConditionOperatorArgs,
+) => boolean | Promise<boolean>;
+
+function isThenable(x: unknown): x is Promise<boolean> {
+  return (
+    x != null &&
+    typeof (x as { then?: unknown }).then === "function"
+  );
+}
 
 const GROUP_OPERATORS = new Set(["and", "or", "not"]);
 
@@ -110,7 +119,24 @@ export class OperatorRegistry {
     if (!handler) {
       throw new Error(`Unknown condition operator: ${operator}`);
     }
-    return handler(args);
+    const result = handler(args);
+    if (isThenable(result)) {
+      throw new Error(
+        `Operator "${operator}" is async; use evaluateAsync(...) instead of evaluate(...)`,
+      );
+    }
+    return result;
+  }
+
+  async evaluateAsync(
+    operator: string,
+    args: ConditionOperatorArgs,
+  ): Promise<boolean> {
+    const handler = this.handlers.get(operator);
+    if (!handler) {
+      throw new Error(`Unknown condition operator: ${operator}`);
+    }
+    return Promise.resolve(handler(args));
   }
 }
 
