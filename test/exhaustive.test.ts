@@ -129,11 +129,15 @@ describe("relational operators", () => {
 });
 
 describe("array operators", () => {
-  it("contains requires array-like value with includes", () => {
+  it("contains on array RHS uses membership; on string RHS uses substring", () => {
     assert.equal(
       createCondition(cond("$.k", "contains", [1, 2, 3])).evaluate(
         ctx({ k: 2 }),
       ),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.k", "contains", "hello")).evaluate(ctx({ k: "ell" })),
       true,
     );
   });

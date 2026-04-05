@@ -71,6 +71,93 @@ describe("Condition", () => {
   });
 });
 
+describe("Extended built-in operators", () => {
+  it("in / nin use Array.includes semantics", () => {
+    assert.equal(createCondition(cond("$.x", "in", [1, 2, 3])).evaluate(ctx({ x: 2 })), true);
+    assert.equal(createCondition(cond("$.x", "in", [1, 2, 3])).evaluate(ctx({ x: 4 })), false);
+    assert.equal(createCondition(cond("$.x", "nin", [1, 2, 3])).evaluate(ctx({ x: 4 })), true);
+    assert.equal(createCondition(cond("$.x", "nin", [1, 2, 3])).evaluate(ctx({ x: 2 })), false);
+    assert.equal(
+      createCondition(cond("$.x", "in", [Number.NaN])).evaluate(ctx({ x: Number.NaN })),
+      true,
+    );
+  });
+
+  it("startsWith and endsWith", () => {
+    assert.equal(
+      createCondition(cond("$.s", "startsWith", "hel")).evaluate(ctx({ s: "hello" })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.s", "endsWith", "lo")).evaluate(ctx({ s: "hello" })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.s", "startsWith", "no")).evaluate(ctx({ s: "hello" })),
+      false,
+    );
+  });
+
+  it("matches applies regex pattern string", () => {
+    assert.equal(
+      createCondition(cond("$.s", "matches", "^[a-z]+$")).evaluate(ctx({ s: "abc" })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.s", "matches", "^[0-9]+$")).evaluate(ctx({ s: "abc" })),
+      false,
+    );
+    assert.equal(
+      createCondition(cond("$.s", "matches", "(")).evaluate(ctx({ s: "x" })),
+      false,
+    );
+  });
+
+  it("between is inclusive on numeric endpoints", () => {
+    assert.equal(
+      createCondition(cond("$.n", "between", [10, 20])).evaluate(ctx({ n: 15 })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.n", "between", [10, 20])).evaluate(ctx({ n: 10 })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.n", "between", [10, 20])).evaluate(ctx({ n: 9 })),
+      false,
+    );
+    assert.equal(
+      createCondition(cond("$.n", "between", [10])).evaluate(ctx({ n: 15 })),
+      false,
+    );
+  });
+
+  it("defined blank notBlank", () => {
+    assert.equal(createCondition(cond("$.x", "defined", null)).evaluate(ctx({ x: 0 })), true);
+    assert.equal(createCondition(cond("$.x", "defined", null)).evaluate(ctx({})), false);
+    assert.equal(createCondition(cond("$.x", "blank", null)).evaluate(ctx({ x: "" })), true);
+    assert.equal(createCondition(cond("$.x", "blank", null)).evaluate(ctx({ x: [] })), true);
+    assert.equal(createCondition(cond("$.x", "blank", null)).evaluate(ctx({ x: {} })), true);
+    assert.equal(createCondition(cond("$.x", "notBlank", null)).evaluate(ctx({ x: "a" })), true);
+    assert.equal(createCondition(cond("$.x", "notBlank", null)).evaluate(ctx({ x: "" })), false);
+  });
+
+  it("isOfType uses JavaScript typeof string", () => {
+    assert.equal(
+      createCondition(cond("$.x", "isOfType", "number")).evaluate(ctx({ x: 1 })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.x", "isOfType", "string")).evaluate(ctx({ x: 1 })),
+      false,
+    );
+    assert.equal(
+      createCondition(cond("$.x", "isOfType", "object")).evaluate(ctx({ x: null })),
+      true,
+    );
+  });
+});
+
 describe("ConditionGroup", () => {
   it("and requires all children", () => {
     const g = createCondition(

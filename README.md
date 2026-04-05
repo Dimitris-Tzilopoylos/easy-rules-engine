@@ -118,10 +118,20 @@ Use `createRule` / `createRuleSet`, or `createEvaluable` when you have either an
 | ------------ | ---------------------------------------------------------------------------------------- |
 | `eq` / `neq` | Strict equality / inequality |
 | `gt`, `gte`, `lt`, `lte` | Relational (coerced as `string \| number` for comparison) |
-| `contains`   | Right-hand side is array-like; `.includes(fieldValue)` |
-| `ncontains`  | `fieldValue` is string-like; does not include right-hand substring |
-| `all` / `any` | Right-hand side is an array: every / some element equals `fieldValue` |
-| `nany` / `none` | Right-hand side is an array: no element equals `fieldValue` |
+| `contains`   | If `value` is a **string**, substring check `value.includes(String(fieldValue))`. Otherwise `value` is normalized to a list (see below) and `fieldValue` is tested with `Array#includes`. |
+| `ncontains`  | `String(fieldValue ?? "")` does **not** include `String(value)` as substring (no throw on non-strings). |
+| `all` / `any` | `value` is normalized to a list; **every** / **some** element **strictly equals** `fieldValue`. |
+| `nany` / `none` | Same list as `any`; `nany` / `none` negate membership of `fieldValue` in that list. |
+| `in` / `nin` | Same list normalization as `any`; `Array#includes` / negated on `fieldValue`. |
+| `startsWith` / `endsWith` | Both sides strings: `fieldValue.startsWith/endsWith(value)` |
+| `matches`    | Right-hand side is a regex **pattern string**; `String(fieldValue)` is tested (invalid pattern → false) |
+| `between`    | Right-hand side is `[lo, hi]`; numeric `fieldValue` is **inclusive** between `Number(lo)` and `Number(hi)` |
+| `defined`    | `fieldValue` is not `null` and not `undefined` (`value` ignored) |
+| `blank`      | `null`, `undefined`, whitespace-only string, empty array, or plain object with no keys |
+| `notBlank`   | Negation of `blank` (`value` ignored) |
+| `isOfType`   | Right-hand side is a string; JavaScript `typeof fieldValue === value` (note: `typeof null === "object"`) |
+
+**List normalization** (for `contains` when `value` is not a string, and for `all`, `any`, `nany`, `none`, `in`, `nin`): `null` / `undefined` → `[]`; arrays used as-is; `Set` → spread elements; `Map` → values; **strings** (only for these operators, not the `contains` substring case) → single-element `[value]`; other **iterables** (e.g. typed arrays) → spread; anything else → `[value]`.
 
 Unknown operator names throw at evaluation time.
 

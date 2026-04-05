@@ -10,7 +10,17 @@ export type KnownConditionOperator =
   | "all"
   | "any"
   | "nany"
-  | "none";
+  | "none"
+  | "in"
+  | "nin"
+  | "startsWith"
+  | "endsWith"
+  | "matches"
+  | "between"
+  | "defined"
+  | "blank"
+  | "notBlank"
+  | "isOfType";
 
 export type ConditionOperator = KnownConditionOperator | (string & {});
 

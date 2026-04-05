@@ -52,3 +52,28 @@ export type {
   QueryResult,
   Selector,
 } from "./lib/jspath";
+
+export {
+  eq,
+  neq,
+  gt,
+  gte,
+  lt,
+  lte,
+  contains,
+  ncontains,
+  all,
+  any,
+  nany,
+  none,
+  isIn,
+  nin,
+  startsWith,
+  endsWith,
+  matches,
+  between,
+  defined,
+  blank,
+  notBlank,
+  isOfType,
+} from "./lib/defaultOperators";

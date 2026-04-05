@@ -11,8 +11,65 @@ export type ConditionOperatorHandler = (args: ConditionOperatorArgs) => boolean;
 
 const GROUP_OPERATORS = new Set(["and", "or", "not"]);
 
-function relationalPair(a: unknown, b: unknown): [string | number, string | number] {
+function relationalPair(
+  a: unknown,
+  b: unknown,
+): [string | number, string | number] {
   return [a as string | number, b as string | number];
+}
+
+function isBlankField(v: unknown): boolean {
+  if (v == null) {
+    return true;
+  }
+  if (typeof v === "string") {
+    return v.trim() === "";
+  }
+  if (Array.isArray(v)) {
+    return v.length === 0;
+  }
+  if (typeof v === "object") {
+    return Object.keys(v as object).length === 0;
+  }
+  return false;
+}
+
+function asCandidateList(value: unknown): unknown[] {
+  if (value == null) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value instanceof Set) {
+    return [...value];
+  }
+  if (value instanceof Map) {
+    return [...value.values()];
+  }
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (typeof value === "object" && Symbol.iterator in value) {
+    try {
+      return [...(value as Iterable<unknown>)];
+    } catch {
+      return [value];
+    }
+  }
+  return [value];
+}
+
+function containsCollection(fieldValue: unknown, value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.includes(String(fieldValue));
+  }
+  return asCandidateList(value).includes(fieldValue);
+}
+
+function ncontainsSubstring(fieldValue: unknown, value: unknown): boolean {
+  const haystack = fieldValue == null ? "" : String(fieldValue);
+  return !haystack.includes(String(value));
 }
 
 export class OperatorRegistry {
@@ -24,7 +81,10 @@ export class OperatorRegistry {
     }
   }
 
-  static merge(base: OperatorRegistry, overlay: OperatorRegistry): OperatorRegistry {
+  static merge(
+    base: OperatorRegistry,
+    overlay: OperatorRegistry,
+  ): OperatorRegistry {
     const next = new OperatorRegistry();
     next.copyHandlersFrom(base);
     next.copyHandlersFrom(overlay);
@@ -33,7 +93,9 @@ export class OperatorRegistry {
 
   register(name: string, handler: ConditionOperatorHandler): this {
     if (GROUP_OPERATORS.has(name)) {
-      throw new Error(`Operator name "${name}" is reserved for condition groups`);
+      throw new Error(
+        `Operator name "${name}" is reserved for condition groups`,
+      );
     }
     this.handlers.set(name, handler);
     return this;
@@ -81,18 +143,56 @@ const DEFAULT_CONDITION_OPERATORS: Record<string, ConditionOperatorHandler> = {
     const [a, b] = relationalPair(fieldValue, value);
     return a <= b;
   },
-  contains: ({ fieldValue, value }) =>
-    (value as { includes: (v: unknown) => boolean }).includes(fieldValue),
-  ncontains: ({ fieldValue, value }) =>
-    !(fieldValue as { includes: (v: unknown) => boolean }).includes(value),
+  contains: ({ fieldValue, value }) => containsCollection(fieldValue, value),
+  ncontains: ({ fieldValue, value }) => ncontainsSubstring(fieldValue, value),
   all: ({ fieldValue, value }) =>
-    (value as unknown[]).every((item: unknown) => item === fieldValue),
+    asCandidateList(value).every((item: unknown) => item === fieldValue),
   any: ({ fieldValue, value }) =>
-    (value as unknown[]).some((item: unknown) => item === fieldValue),
+    asCandidateList(value).some((item: unknown) => item === fieldValue),
   nany: ({ fieldValue, value }) =>
-    !(value as unknown[]).some((item: unknown) => item === fieldValue),
+    !asCandidateList(value).some((item: unknown) => item === fieldValue),
   none: ({ fieldValue, value }) =>
-    !(value as unknown[]).some((item: unknown) => item === fieldValue),
+    !asCandidateList(value).some((item: unknown) => item === fieldValue),
+  in: ({ fieldValue, value }) => asCandidateList(value).includes(fieldValue),
+  nin: ({ fieldValue, value }) => !asCandidateList(value).includes(fieldValue),
+  startsWith: ({ fieldValue, value }) =>
+    typeof fieldValue === "string" &&
+    typeof value === "string" &&
+    fieldValue.startsWith(value),
+  endsWith: ({ fieldValue, value }) =>
+    typeof fieldValue === "string" &&
+    typeof value === "string" &&
+    fieldValue.endsWith(value),
+  matches: ({ fieldValue, value }) => {
+    if (typeof value !== "string") {
+      return false;
+    }
+    try {
+      return new RegExp(value).test(String(fieldValue));
+    } catch {
+      return false;
+    }
+  },
+  between: ({ fieldValue, value }) => {
+    if (!Array.isArray(value) || value.length !== 2) {
+      return false;
+    }
+    const n = Number(fieldValue);
+    if (Number.isNaN(n)) {
+      return false;
+    }
+    const lo = Number(value[0]);
+    const hi = Number(value[1]);
+    if (Number.isNaN(lo) || Number.isNaN(hi)) {
+      return false;
+    }
+    return n >= lo && n <= hi;
+  },
+  defined: ({ fieldValue }) => fieldValue !== undefined && fieldValue !== null,
+  blank: ({ fieldValue }) => isBlankField(fieldValue),
+  notBlank: ({ fieldValue }) => !isBlankField(fieldValue),
+  isOfType: ({ fieldValue, value }) =>
+    typeof value === "string" && typeof fieldValue === value,
 };
 
 export function createDefaultOperatorRegistry(): OperatorRegistry {
@@ -105,9 +205,7 @@ export function mergeWithDefaultOperators(
   return OperatorRegistry.merge(createDefaultOperatorRegistry(), custom);
 }
 
-export function resolveOperators(
-  custom?: OperatorRegistry,
-): OperatorRegistry {
+export function resolveOperators(custom?: OperatorRegistry): OperatorRegistry {
   return custom != null
     ? mergeWithDefaultOperators(custom)
     : createDefaultOperatorRegistry();

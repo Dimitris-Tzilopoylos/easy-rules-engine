@@ -218,20 +218,31 @@ describe("rule and ruleset edge cases", () => {
   });
 });
 
-describe("invalid RHS shapes for array or string operators", () => {
-  it("contains throws when value is not array-like with includes", () => {
-    const c = createCondition(cond("$.k", "contains", 1 as unknown as number[]));
-    assert.throws(() => c.evaluate(ctx({ k: 1 })), TypeError);
+describe("robust array-like RHS handling", () => {
+  it("contains treats non-list RHS as a single candidate", () => {
+    assert.equal(createCondition(cond("$.k", "contains", 2)).evaluate(ctx({ k: 2 })), true);
+    assert.equal(createCondition(cond("$.k", "contains", 2)).evaluate(ctx({ k: 3 })), false);
   });
 
-  it("any throws when value is not array-like", () => {
-    const c = createCondition(cond("$.k", "any", "nope" as unknown as number[]));
-    assert.throws(() => c.evaluate(ctx({ k: 1 })), TypeError);
+  it("any accepts scalar RHS as one option", () => {
+    assert.equal(createCondition(cond("$.k", "any", "nope")).evaluate(ctx({ k: "nope" })), true);
+    assert.equal(createCondition(cond("$.k", "any", "nope")).evaluate(ctx({ k: 1 })), false);
   });
 
-  it("ncontains throws when fieldValue is not string-like with includes", () => {
-    const c = createCondition(cond("$.k", "ncontains", "x"));
-    assert.throws(() => c.evaluate(ctx({ k: 42 })), TypeError);
+  it("ncontains stringifies fieldValue for substring check", () => {
+    assert.equal(createCondition(cond("$.k", "ncontains", "x")).evaluate(ctx({ k: 42 })), true);
+    assert.equal(createCondition(cond("$.k", "ncontains", "4")).evaluate(ctx({ k: 42 })), false);
+  });
+
+  it("in uses Set and other iterables", () => {
+    assert.equal(
+      createCondition(cond("$.k", "in", new Set([1, 2, 3]))).evaluate(ctx({ k: 2 })),
+      true,
+    );
+    assert.equal(
+      createCondition(cond("$.k", "in", new Uint8Array([1, 2, 3]))).evaluate(ctx({ k: 2 })),
+      true,
+    );
   });
 });
 
