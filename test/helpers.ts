@@ -1,4 +1,19 @@
-import type { IBaseCondition, IBaseConditionGroup } from "../src/lib/types";
+import assert from "node:assert/strict";
+import type {
+  Evaluatable,
+  IBaseCondition,
+  IBaseConditionGroup,
+  IContext,
+} from "../src/lib/types";
+
+export async function assertEvalParity(
+  e: Evaluatable,
+  ctx: IContext,
+  expected: boolean,
+): Promise<void> {
+  assert.equal(e.evaluate(ctx), expected, "evaluate");
+  assert.equal(await e.evaluateAsync(ctx), expected, "evaluateAsync");
+}
 
 export function cond(
   field: string,

@@ -7,7 +7,8 @@ import {
   createRule,
   createRuleSet,
 } from "../src/lib/factory";
-import { cond, group } from "./helpers";
+import { assertEvalParity, cond, group } from "./helpers";
+import { deeplyNestedGroupsRuleJson } from "./fixtures/engineFixtures";
 import type { IContext, IRule, IRuleSet } from "../src/lib/types";
 
 const ctx = (input: Record<string, unknown>): IContext => ({ input });
@@ -77,6 +78,74 @@ describe("Nested condition groups", () => {
     assert.equal(g.evaluate(ctx({ p: true, q: 3 })), true);
     assert.equal(g.evaluate(ctx({ p: true, q: 1 })), false);
     assert.equal(g.evaluate(ctx({ p: false, bypass: "yes" })), true);
+  });
+
+  it("five levels: OR → AND → NOT → OR → leaves", async () => {
+    const g = createCondition(
+      group("or", [
+        group("and", [
+          cond("$.a", "eq", 1),
+          group("not", [
+            group("or", [cond("$.b", "eq", 2), cond("$.b", "eq", 3)]),
+          ]),
+        ]),
+        cond("$.c", "eq", "yes"),
+      ]),
+    );
+    await assertEvalParity(g, createContext({ a: 1, b: 9, c: "no" }), true);
+    await assertEvalParity(g, createContext({ a: 1, b: 2, c: "no" }), false);
+    await assertEvalParity(g, createContext({ a: 0, c: "yes" }), true);
+  });
+});
+
+describe("Nested groups: sync and async agree", () => {
+  it("and-of-or matches four-level tree (evaluateAsync)", async () => {
+    const g = createCondition(
+      group("or", [
+        group("and", [
+          cond("$.p", "eq", true),
+          group("not", [
+            group("or", [cond("$.q", "eq", 1), cond("$.q", "eq", 2)]),
+          ]),
+        ]),
+        cond("$.bypass", "eq", "yes"),
+      ]),
+    );
+    await assertEvalParity(g, createContext({ p: true, q: 3 }), true);
+    await assertEvalParity(g, createContext({ p: true, q: 1 }), false);
+    await assertEvalParity(g, createContext({ p: false, bypass: "yes" }), true);
+  });
+
+  it("rule with nested groups (JSON paths)", async () => {
+    const rule: IRule = {
+      id: "nested-async",
+      type: "permissive",
+      conditions: [
+        cond("$.enabled", "eq", true),
+        group("or", [
+          cond("$.env", "eq", "dev"),
+          cond("$.env", "eq", "staging"),
+        ]),
+      ],
+    };
+    const r = createRule(rule);
+    await assertEvalParity(r, createContext({ enabled: true, env: "dev" }), true);
+    await assertEvalParity(r, createContext({ enabled: true, env: "prod" }), false);
+  });
+
+  it("createRule from fixture JSON (nested groups)", async () => {
+    const raw: unknown = deeplyNestedGroupsRuleJson();
+    const r = createRule(raw);
+    await assertEvalParity(
+      r,
+      createContext({ region: "eu", role: "admin", tier: "gold" }),
+      true,
+    );
+    await assertEvalParity(
+      r,
+      createContext({ region: "eu", role: "user", tier: "silver" }),
+      false,
+    );
   });
 });
 

@@ -7,6 +7,35 @@ export {
 } from "./lib/factory";
 
 export {
+  conditionSchema,
+  contextSchema,
+  createContextArgumentSchema,
+  evaluableSchema,
+  parseCondition,
+  parseContext,
+  parseCreateContextArgument,
+  parseEvaluable,
+  parseRule,
+  parseRuleSet,
+  ruleSchema,
+  ruleSetSchema,
+  safeParseCondition,
+  safeParseContext,
+  safeParseCreateContextArgument,
+  safeParseEvaluable,
+  safeParseRule,
+  safeParseRuleSet,
+} from "./schemas";
+
+export type {
+  ZodCondition,
+  ZodContext,
+  ZodEvaluable,
+  ZodRule,
+  ZodRuleSet,
+} from "./schemas";
+
+export {
   createDefaultOperatorRegistry,
   createOperatorRegistry,
   mergeWithDefaultOperators,
