@@ -1,6 +1,6 @@
 {
   "name": "easy-rules-engine",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Evaluate JSON-friendly rules and rule sets with JSONPath-style fields and pluggable operators",
   "type": "module",
   "main": "./dist/index.js",
